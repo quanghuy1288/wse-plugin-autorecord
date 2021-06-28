@@ -1,3 +1,31 @@
+# HttpFileRecordingProvider
+
+## Get all record file
+http://192.168.51.84:8086/autorecording
+
+## Get all record file by source stream name
+http://192.168.51.84:8086/autorecording?source_stream=test
+
+## Get record file by stream name (with full profile suffix)
+http://192.168.51.84:8086/autorecording?stream=test__level2
+
+## Callback
+
+### At create new record file event
+```json
+{"type":"create", "file":{"appName":"live","filePath":"test.mp4","startTime":"2021-06-25-18.06.23.091","id":1,"endTime":"","fileSizeByte":0,"error":null,"uuid":null,"streamName":"test","fileDurationMillisecond":0,"appInstanceName":"_definst_","status":"RECORDING"}}
+```
+
+### At append recording to exist event
+```json
+{"type":"append", "file":{"appName":"live","filePath":"test.mp4","startTime":"2021-06-25-18.06.23.091","id":1,"endTime":"2021-06-25-18.06.24.091","fileSizeByte":4000,"error":null,"uuid":null,"streamName":"test","fileDurationMillisecond":1000,"appInstanceName":"_definst_","status":"RECORDING"}}
+```
+
+### At finish recording event
+```json
+{"type":"finish", "file":{"appName":"live","filePath":"test.mp4","startTime":"2021-06-25-18.06.23.091","id":1,"endTime":"2021-06-25-18.06.25.091","fileSizeByte":8000,"error":null,"uuid":null,"streamName":"test","fileDurationMillisecond":2000,"appInstanceName":"_definst_","status":"SUCCESS"}}
+```
+
 # LiveStreamAutoRecord
 **ModuleAutoRecord** for Wowza Streaming Engine [media server software](https://www.wowza.com/products/streaming-engine) is an alternative to the [Record all incoming streams](https://www.wowza.com/docs/how-to-record-live-streams-wowza-streaming-engine) option in Wowza streaming Engine Manager. It enables you to record either all or selected incoming streams on an application automatically using the default StreamRecorder parameters configured for the application. The recordings are accessible via the Wowza Streaming Engine Manager user interface, the Wowza Streaming Engine REST Service, and the **LiveStreamRecord** HTTP provider.
 

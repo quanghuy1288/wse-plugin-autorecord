@@ -67,7 +67,6 @@ public class ModuleAutoRecordAdvancedExample extends ModuleBase implements IModu
 	// listener class for IStreamRecorder events
 	class MyStreamRecorderListener implements IStreamRecorderActionNotify
 	{
-		@Override
 		public void onCreateRecorder(IStreamRecorder recorder)
 		{
 			/*
@@ -82,38 +81,32 @@ public class ModuleAutoRecordAdvancedExample extends ModuleBase implements IModu
 			getLogger().info("MyStreamRecorderListener.onCreateRecorder[" + appInstance.getContextStr() + "]: new Recording created:" + recorder.getStreamName());
 		}
 
-		@Override
 		public void onStartRecorder(IStreamRecorder recorder)
 		{
 		    // log where the recording is going to being written
 			getLogger().info("MyStreamRecorderListener.onStartRecorder[" + appInstance.getContextStr() + "]: new Recording started:" + recorder.getStreamName() + " " + recorder.getFilePath());
 		}
 
-		@Override
 		public void onSplitRecorder(IStreamRecorder recorder)
 		{
 			getLogger().info("MyStreamRecorderListener.onSplitRecorder[" + appInstance.getContextStr() + "]: Segment recording:" + recorder.getStreamName());
 		}
 
-		@Override
 		public void onStopRecorder(IStreamRecorder recorder)
 		{
 			getLogger().info("MyStreamRecorderListener.onStopRecorder[" + appInstance.getContextStr() + "]: Recording stopped:" + recorder.getStreamName() + " " + recorder.getCurrentFile());
 		}
 
-		@Override
 		public void onSwitchRecorder(IStreamRecorder recorder, IMediaStream newStream)
 		{
 			getLogger().info("MyStreamRecorderListener.onSwitchRecorder[" + appInstance.getContextStr() + "]: switch to new stream, old Stream:" + recorder.getStreamName() +" new Stream:" + newStream.getName());
 		}
 
-		@Override
 		public void onSegmentStart(IStreamRecorder recorder)
 		{
 			getLogger().info("MyStreamRecorderListener.onSegmentStart[" + appInstance.getContextStr() + "]: new segment created:" + recorder.getStreamName());
 		}
 
-		@Override
 		public void onSegmentEnd(IStreamRecorder recorder)
 		{
 			getLogger().info("MyStreamRecorderListener.onSegmentEnd[" + appInstance.getContextStr() + "]: segment closed:" + recorder.getStreamName());

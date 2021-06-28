@@ -4,11 +4,12 @@
  */
 package com.wowza.wms.plugin;
 
+import java.util.List;
 import java.util.regex.PatternSyntaxException;
 
 import com.wowza.util.StringUtils;
 import com.wowza.wms.application.IApplicationInstance;
-import com.wowza.wms.livestreamrecord.manager.ILiveStreamRecordManager;
+import com.wowza.wms.livestreamrecord.manager.IStreamRecorder;
 import com.wowza.wms.livestreamrecord.manager.StreamRecorderParameters;
 import com.wowza.wms.logging.WMSLogger;
 import com.wowza.wms.logging.WMSLoggerFactory;
@@ -17,10 +18,18 @@ import com.wowza.wms.module.ModuleBase;
 import com.wowza.wms.stream.IMediaStream;
 import com.wowza.wms.stream.MediaStreamActionNotifyBase;
 import com.wowza.wms.vhost.IVHost;
+import com.wowza.wms.livestreamrecord.manager.StreamRecorder;
+import org.apache.http.HttpResponse;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.entity.StringEntity;
+import org.apache.http.impl.client.HttpClientBuilder;
+import org.json.simple.JSONObject;
 
 public class ModuleAutoRecord extends ModuleBase
 {
 	public static final String CLASSNAME = "ModuleAutoRecord";
+	public static String DATABASE_URL = null;
 
 	private enum RecordType
 	{
@@ -31,6 +40,7 @@ public class ModuleAutoRecord extends ModuleBase
 	private IApplicationInstance appInstance = null;
 	private IVHost vhost = null;
 	private StreamListener actionNotify = new StreamListener();
+	
 
 	private String namesStr = null;
 	private String namesStrDelimiter = "(\\||,)";
@@ -39,6 +49,8 @@ public class ModuleAutoRecord extends ModuleBase
 	private Boolean debugLog = false;
 	private StreamRecorderParameters recordParams = null;
 	private boolean shutDownRecorderOnUnPublish = true;
+	private String callBackUrl = null;
+	private DbManager db = null;
 
 	public void onAppCreate(IApplicationInstance appInstance)
 	{
@@ -47,6 +59,9 @@ public class ModuleAutoRecord extends ModuleBase
 
 		this.appInstance = appInstance;
 		vhost = appInstance.getVHost();
+
+		DATABASE_URL = "jdbc:sqlite:" + appInstance.getVHost().getHomePath() + "/autorecord.db";
+		db = DbManager.getInstance(DATABASE_URL);
 
 		// main streamRecorder debugLog property
 		debugLog = appInstance.getStreamRecorderProperties().getPropertyBoolean("streamRecorderDebugEnable", debugLog);
@@ -77,6 +92,7 @@ public class ModuleAutoRecord extends ModuleBase
 		}
 		namesStr = appInstance.getStreamRecorderProperties().getPropertyStr("streamRecorderStreamNames", null);
 		namesStrDelimiter = appInstance.getStreamRecorderProperties().getPropertyStr("streamRecorderStreamNamesDelimiter", namesStrDelimiter);
+		callBackUrl = appInstance.getStreamRecorderProperties().getPropertyStr("streamRecorderCallbackUrl", null);
 
 		// Create a new StreamRecorderParameters object with defaults set via StreamRecorder Properties in the application.
 		recordParams = new StreamRecorderParameters(appInstance);
@@ -90,7 +106,7 @@ public class ModuleAutoRecord extends ModuleBase
 		{
 			// Automatically record all streams as they are published.
 			// Recorders will only be created when a stream is first published.
-			appInstance.getVHost().getLiveStreamRecordManager().startRecording(appInstance, recordParams);
+			//appInstance.getVHost().getLiveStreamRecordManager().startRecording(appInstance, recordParams);
 			logger.info(CLASSNAME + ".onAppCreate[" + appInstance.getContextStr() + "] recording all streams", WMSLoggerIDs.CAT_application, WMSLoggerIDs.EVT_comment);
 		}
 
@@ -107,13 +123,18 @@ public class ModuleAutoRecord extends ModuleBase
 		@Override
 		public void onPublish(IMediaStream stream, String streamName, boolean isRecord, boolean isAppend)
 		{
-			if(recordType == RecordType.all || vhost.getLiveStreamRecordManager().getRecorder(appInstance, streamName) != null)
+			logger.info(CLASSNAME + ".onPublish: " + streamName);
+			if(vhost.getLiveStreamRecordManager().getRecorder(appInstance, streamName) != null)
 				return;
 
 			boolean matchFound = false;
 			boolean canRecord = false;
 			switch (recordType)
 			{
+			case all:
+				canRecord = true;
+				break;
+
 			case allow:
 				matchFound = checkNames(streamName);
 				if (matchFound)
@@ -146,6 +167,32 @@ public class ModuleAutoRecord extends ModuleBase
 				if (debugLog)
 					logger.info(CLASSNAME + ".onPublish [" + appInstance.getContextStr() + "/" + streamName + "] starting recording. RecordType: " + recordType, WMSLoggerIDs.CAT_application, WMSLoggerIDs.EVT_comment);
 				vhost.getLiveStreamRecordManager().startRecording(appInstance, streamName, recordParams);
+
+				// TODO find old matched file recording
+				logger.info(CLASSNAME + " start recording: ");
+				StreamRecorder recorder = (StreamRecorder)vhost.getLiveStreamRecordManager().getRecorder(appInstance, streamName);
+				FileRecording file = null;
+				try {
+					file = db.getFileRecording(recorder.getFilePath());
+					logger.warn(CLASSNAME + " file path: " + recorder.getFilePath());
+					if (file == null){
+						logger.warn(CLASSNAME + " no fileRecording found for path: " + recorder.getFilePath());
+						file = new FileRecording(recorder);
+						db.createFileRecording(file);
+						logger.warn(CLASSNAME + " createFileRecording: " + file.toString());
+						callback(buildFileRecordingJson(file, "create"));
+					} else{
+						logger.warn(CLASSNAME + " fileRecording found: " + file.toString());
+						file.startAppend(recorder);
+						db.updateFileRecording(file);
+						logger.warn(CLASSNAME + " updateFileRecording: " + file.toString());
+						callback(buildFileRecordingJson(file, "update"));
+					}
+					logger.info(CLASSNAME + " createRecordingFile");
+				} catch (Exception e) {
+					e.printStackTrace();
+					logger.warn(e.getMessage());
+				}
 			}
 			else if(debugLog)
 				logger.info(CLASSNAME + ".onPublish [" + appInstance.getContextStr() + "/" + streamName + "] not starting recording. RecordType: " + recordType, WMSLoggerIDs.CAT_application, WMSLoggerIDs.EVT_comment);
@@ -228,12 +275,37 @@ public class ModuleAutoRecord extends ModuleBase
 		}
 
 		@Override
+		public void onStop(IMediaStream stream) {
+			logger.info(CLASSNAME + " StreamListener.onStop stream: " + stream.getName());
+		}
+
+		@Override
 		public void onUnPublish(IMediaStream stream, String streamName, boolean isRecord, boolean isAppend)
 		{
-			if(shutDownRecorderOnUnPublish)
+			logger.info(CLASSNAME + " onUnPublish");
+			if(true)
 			{
+				logger.info(CLASSNAME + " onUnPublish2");
 				if (debugLog)
 					logger.info(CLASSNAME + ".onUnPublish [" + appInstance.getContextStr() + "/" + streamName + "] shutting down recorder", WMSLoggerIDs.CAT_application, WMSLoggerIDs.EVT_comment);
+
+				try {
+					logger.info(CLASSNAME + " onUnPublish3: " + streamName);
+					List<FileRecording> files = db.getRecordingFileListByStreamName(streamName);
+
+					if (!files.isEmpty()){
+						logger.info(CLASSNAME + " onUnPublish4");
+						IStreamRecorder recorder = vhost.getLiveStreamRecordManager().getRecorder(appInstance, streamName);
+						FileRecording file = files.get(0);
+						file.updateOnFinish((StreamRecorder) recorder);
+						db.updateFileRecording(file);
+						callback(buildFileRecordingJson(file, "finish"));
+						logger.info(CLASSNAME + " onUnPublish updateRecordingFile");
+					}
+				} catch (Exception e) {
+					e.printStackTrace();
+					logger.warn(e.getMessage());
+				}
 				vhost.getLiveStreamRecordManager().stopRecording(appInstance, streamName);
 			}
 		}
@@ -241,6 +313,30 @@ public class ModuleAutoRecord extends ModuleBase
 
 	public void onStreamCreate(IMediaStream stream)
 	{
+		logger.info(CLASSNAME + ".onStreamCreate addClientListener");
 		stream.addClientListener(actionNotify);
+	}
+
+	private JSONObject buildFileRecordingJson(FileRecording file, String type){
+		JSONObject content = new JSONObject();
+		content.put("type", type);
+		content.put("file", file.toJson());
+		return content;
+	}
+
+	private void callback(JSONObject jsonObj){
+		HttpClient httpClient = HttpClientBuilder.create().build();
+		try {
+			HttpPost request = new HttpPost(callBackUrl);
+			StringEntity params = new StringEntity(jsonObj.toJSONString());
+			request.addHeader("content-type", "application/json");
+			request.setEntity(params);
+			HttpResponse response = httpClient.execute(request);
+			logger.warn(CLASSNAME + jsonObj.toJSONString() + " ----- " + response.getStatusLine() + " ----- " + response.toString());
+		} catch (Exception ex) {
+			logger.warn(ex.getMessage());
+		} finally {
+			// @Deprecated httpClient.getConnectionManager().shutdown();
+		}
 	}
 }
