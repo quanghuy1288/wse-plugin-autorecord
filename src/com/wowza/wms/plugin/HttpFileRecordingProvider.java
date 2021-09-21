@@ -8,7 +8,6 @@ import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 
 import java.io.OutputStream;
-import java.util.ArrayList;
 import java.util.List;
 
 public class HttpFileRecordingProvider extends HTTProvider2Base {

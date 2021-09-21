@@ -1,4 +1,6 @@
+bin/
 *.xml
 .classpath
 .project
 *.iml
+*.class

@@ -1,13 +1,13 @@
 # HttpFileRecordingProvider
 
 ## Get all record file
-http://192.168.51.84:8086/autorecording
+http://ip_server:8086/autorecording
 
 ## Get all record file by source stream name
-http://192.168.51.84:8086/autorecording?source_stream=test
+http://ip_server:8086/autorecording?source_stream=test
 
 ## Get record file by stream name (with full profile suffix)
-http://192.168.51.84:8086/autorecording?stream=test__level2
+http://ip_server:8086/autorecording?stream=test__level2
 
 ## Callback
 
