@@ -182,7 +182,6 @@ public class ModuleAutoRecord extends ModuleBase
 						logger.warn(CLASSNAME + " createFileRecording: " + file.toString());
 						callback(buildFileRecordingJson(file, "create"));
 					} else{
-						logger.warn(CLASSNAME + " fileRecording found: " + file.toString());
 						file.startAppend(recorder);
 						db.updateFileRecording(file);
 						logger.warn(CLASSNAME + " updateFileRecording: " + file.toString());
@@ -325,6 +324,11 @@ public class ModuleAutoRecord extends ModuleBase
 	}
 
 	private void callback(JSONObject jsonObj){
+		if(callBackUrl == null || callBackUrl.equalsIgnoreCase("")) {
+			logger.warn(CLASSNAME + "cannot callback to empty url: " + callBackUrl);
+			return;
+		}
+		
 		HttpClient httpClient = HttpClientBuilder.create().build();
 		try {
 			HttpPost request = new HttpPost(callBackUrl);
@@ -332,7 +336,7 @@ public class ModuleAutoRecord extends ModuleBase
 			request.addHeader("content-type", "application/json");
 			request.setEntity(params);
 			HttpResponse response = httpClient.execute(request);
-			logger.warn(CLASSNAME + jsonObj.toJSONString() + " ----- " + response.getStatusLine() + " ----- " + response.toString());
+			logger.warn(CLASSNAME + "callback: " + callBackUrl + jsonObj.toJSONString() + " ----- " + response.getStatusLine() + " ----- " + response.toString());
 		} catch (Exception ex) {
 			logger.warn(ex.getMessage());
 		} finally {

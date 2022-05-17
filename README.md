@@ -1,5 +1,35 @@
 # HttpFileRecordingProvider
 
+## Setup
+
+#### Http Provider config
+```
+<HostPort>
+    <Name>Default Admin</Name>
+    <Type>Admin</Type>
+    <Port>8086</Port>
+    <HTTPProviders>
+            <HTTPProvider>
+                    <BaseClass>com.wowza.wms.plugin.HttpFileRecordingProvider</BaseClass>
+                    <RequestFilters>autorecording*</RequestFilters>
+                    <AuthenticationMethod>none</AuthenticationMethod>
+            </HTTPProvider>
+     </HTTPProviders>
+</HostPort>
+
+```
+
+#### Module config
+```
+com.wowza.wms.plugin.ModuleAutoRecord
+```
+
+#### Property config
+```
+/Root/Application/StreamRecorder		streamRecorderRecordType		String		all, source, transcoder, allow, whitelist, deny, blacklist, none
+/Root/Application/StreamRecorder		streamRecorderCallbackUrl	String		(optional)
+```
+
 ## Get all record file
 http://ip_server:8086/autorecording
 
@@ -18,7 +48,7 @@ http://ip_server:8086/autorecording?stream=test__level2
 
 ### At append recording to exist event
 ```json
-{"type":"append", "file":{"appName":"live","filePath":"test.mp4","startTime":"2021-06-25-18.06.23.091","id":1,"endTime":"2021-06-25-18.06.24.091","fileSizeByte":4000,"error":null,"uuid":null,"streamName":"test","fileDurationMillisecond":1000,"appInstanceName":"_definst_","status":"RECORDING"}}
+{"type":"update", "file":{"appName":"live","filePath":"test.mp4","startTime":"2021-06-25-18.06.23.091","id":1,"endTime":"2021-06-25-18.06.24.091","fileSizeByte":4000,"error":null,"uuid":null,"streamName":"test","fileDurationMillisecond":1000,"appInstanceName":"_definst_","status":"RECORDING"}}
 ```
 
 ### At finish recording event
@@ -53,3 +83,5 @@ Wowza Media Systems™ provides developers with a platform to create streaming a
 
 ## License
 This code is distributed under the [Wowza Public License](/LICENSE.txt).
+
+  

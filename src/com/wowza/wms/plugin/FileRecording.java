@@ -129,7 +129,7 @@ public class FileRecording {
         obj.put("filePath", filePath);
         obj.put("fileSizeByte", fileSize);
         obj.put("fileDurationMillisecond", fileDurationMillisecond);
-        obj.put("status", status);
+        obj.put("status", String.valueOf(status));
         obj.put("error", error);
         return obj;
     }
